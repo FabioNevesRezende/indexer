@@ -18,18 +18,22 @@ stemmer.stem('copiar')
 '''
 
 from json import JSONEncoder
-import sys, re, traceback, math, nltk, json, pdftotext, magic
+import sys, re, traceback, math, nltk, json, pdftotext, magic, argparse
 mime = magic.Magic(mime=True)
 
-args = sys.argv
+parser = argparse.ArgumentParser()
 
-if len(args) != 2:
-    print('input inválido, modo de uso:')
-    print(args[0] + ' arquivo_busca')
-    exit(0)
+parser.add_argument('-j', help='Arquivo json contendo objeto do indice invertido', dest='indicejsonfile', type=str)
+parser.add_argument('-c', help='Consulta a ser realizada', dest='busca', type=str)
+parser.add_argument('-s', help='Armazena o indice invertido em um arquivo chamado indice.json', dest='storeindice', action='store_true')
+
+args = parser.parse_args()
+
+if not args.busca:
+    print('Input inválido')
+    exit(1)
 
 arquivo_base = 'base.txt'
-arquivo_busca = args[1]
 
 nltk.download('stopwords')
 stop_words = nltk.corpus.stopwords.words('portuguese')
@@ -96,6 +100,11 @@ class IndiceInvertido(JSONEncoder):
         self.tuplas = {}
         self.nroDocumentos = 0 # este é o N da fórmula
 
+    def __init__(self, jsonPath=''):
+        self.tuplas = {}
+        self.nroDocumentos = 0 # este é o N da fórmula
+        self.jsonPath = jsonPath
+
     def default(self, object):
         if isinstance(object, IndiceInvertido):
             return object.__dict__
@@ -129,7 +138,7 @@ class IndiceInvertido(JSONEncoder):
         for chave in self.tuplas:
             tpls = len(self.tuplas[chave].tupla)
             countInner = 0
-            finalJsonStr += '"' + chave + '":['
+            finalJsonStr += '\n"' + chave + '":['
             for documento in self.tuplas[chave].tupla:
                 finalJsonStr += '{'
                 finalJsonStr += '"doc":"' + str(documento) + '","qt":' + str(self.tuplas[chave].tupla[documento])
@@ -147,6 +156,15 @@ class IndiceInvertido(JSONEncoder):
         finalJsonStr += '}' 
 
         return finalJsonStr
+
+    def fromJsonStr(self):
+        jsonFile = open(self.jsonPath, 'r')
+
+        indexDict = json.loads(jsonFile.read())
+
+        for palavra in indexDict:
+            for tupla in indexDict[palavra]:
+                self.addPalavra(palavra, tupla['doc'])
 
     def toFile(self):
         jsonTxt = self.toJsonStr()
@@ -246,17 +264,23 @@ class Busca():
         arq.close()
     
 
+def removeCaractersEspeciais(palavra):
+    return palavra.lower().strip('!').replace('\n', '').replace('"', '').replace('\r', '') 
+
 def parsearFraseInsertIndice(frase, doc, indice):
     palavrasDaFrase = re.split('[\.\? ,!]', frase) # cria vetor de strings com cada palavra separada pelos símbolos "." "?" "," e " "
     for palavra in palavrasDaFrase:
         if palavra != '' and palavra != '\n' and palavra.lower() not in stop_words:
-            indice.addPalavra(palavra.lower().strip('!').replace('\n', ''), doc)
+            indice.addPalavra(removeCaractersEspeciais(palavra), doc)
 
 def constroiIndiceInvertido(arquivoDeDocumentos):
-    indice = IndiceInvertido()
+    if args.indicejsonfile:
+        indice = IndiceInvertido('indice.json')
+        indice.fromJsonStr()
+    else:
+        indice = IndiceInvertido()
     
     try:
-        
         arq = open(arquivoDeDocumentos, 'r')
         for d in arq.readlines():
             d = d.strip('\n')
@@ -302,16 +326,15 @@ def GeraArquivoPesos(arquivo_base, indice):
 
 indice = constroiIndiceInvertido(arquivo_base)
 GeraArquivoPesos(arquivo_base, indice)
-#indice.printaIndices()
-#print("\n\n\n\n\n")
 
-string_busca = open(arquivo_busca, 'r').read().strip('\n').strip()
+string_busca = args.busca
   
 print("String de busca: " + string_busca)    
 b = Busca(indice, string_busca)
-#print(indice.toJsonStr())
 
-indice.toFile()
+if args.storeindice:
+    print("Armazenando indice invertido em arquivo")
+    indice.toFile()
 
 
 
