@@ -1,0 +1,6 @@
+.vscode
+*.toy
+*.pdf
+*.txt
+indice.json
+test-*.py
