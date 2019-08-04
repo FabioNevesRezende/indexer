@@ -1,5 +1,8 @@
 # -*- coding: utf-8 -*-
 import json, math, traceback, magic, re, pdftotext
+from nltk.tokenize import sent_tokenize, word_tokenize
+from nltk.stem import PorterStemmer
+
 mime = magic.Magic(mime=True)
 from utils import *
 
@@ -51,6 +54,7 @@ class IndiceInvertido(json.JSONEncoder):
             self.stop_words = stop_words
             self.jsonPath = jsonPath
             self.base = base
+            self.ps = PorterStemmer()
 
             self.nroDocumentos = self.calculateNumDocs()
 
@@ -63,13 +67,16 @@ class IndiceInvertido(json.JSONEncoder):
                     mimeType = magic.from_file(d, mime=True)
                     if mimeType == 'text/plain':
                         with open(d.strip('\n'), 'r') as doc:
-                            for linha in doc.readlines():
-                                self.parsearFraseInsertIndice(linha, d)
+                            content = doc.read()
+                            for frase in sent_tokenize(content):
+                                self.parsearFraseInsertIndice(frase, d)
                     elif mimeType == 'application/pdf':
                         with open(d, "rb") as f:
                             pdf = pdftotext.PDF(f)
                             for page in pdf:
-                                self.parsearFraseInsertIndice(page, d)
+                                frases = sent_tokenize(page)
+                                for frase in frases:
+                                    self.parsearFraseInsertIndice(frase, d)
                                 
                         print('Finalizada leitura do pdf ' + d)
 
@@ -79,11 +86,15 @@ class IndiceInvertido(json.JSONEncoder):
             exit(1)
 
     def parsearFraseInsertIndice(self, frase, doc):
-        palavrasDaFrase = re.split('[\.\? ,!]', frase) # cria vetor de strings com cada palavra separada pelos símbolos "." "?" "," e " "
+        palavrasDaFrase = word_tokenize(frase)
         allowedChars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZçÇáÁàÀãÃâÂéÉêÊíÍóÓõÕôÔúÚ'
         for palavra in palavrasDaFrase:
             if palavra != '' and palavra != '\n' and palavra.lower() not in self.stop_words:
-                self.addPalavra(removeCaractersEspeciais(leaveOnlyCharsetInString(palavra,allowedChars)), doc)
+                palavra = leaveOnlyCharsetInString(palavra,allowedChars)
+                self.addPalavra(palavra, doc)
+                raiz = self.ps.stem(palavra)
+                if raiz:
+                    self.addPalavra(raiz, doc)
 
     def calculateNumDocs(self):
         num = 0

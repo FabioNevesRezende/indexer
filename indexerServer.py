@@ -27,7 +27,7 @@ mime = magic.Magic(mime=True)
 parser = argparse.ArgumentParser()
 
 parser.add_argument('-j', help='Arquivo json contendo objeto do indice invertido', dest='indicejsonfile', type=str)
-#parser.add_argument('busca', help='Consulta a ser realizada', type=str)
+parser.add_argument('port', help='Porta http', type=int)
 parser.add_argument('-s', help='Armazena o indice invertido em um arquivo chamado indice.json', dest='storeindice', action='store_true')
 
 args = parser.parse_args()
@@ -125,4 +125,4 @@ def consulta():
     return jsonify({'result': content})
 
 
-httpServer.run(port=5002)
+httpServer.run(port=args.port)

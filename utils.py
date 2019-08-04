@@ -14,9 +14,6 @@ def uniao(array1, array2):
 # Subtração de conjuntos
 def subtracao(array1, array2):
     return list(set(array1) - set(array2))
-        
-def removeCaractersEspeciais(palavra):
-    return palavra.lower().strip('!').replace('\n', '').replace('"', '').replace('\r', '').strip(';').strip(':')
 
 def removeNonAscii(text):
     return unidecode(str(text))
